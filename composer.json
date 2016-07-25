@@ -1,0 +1,20 @@
+{
+    "name": "rips/librips-php",
+    "description": "A simple PHP interface for the RIPS API.",
+    "type": "library",
+    "keywords": [
+        "rips",
+        "ssca"
+    ],
+    "homepage": "https://www.ripstech.com/",
+    "license": "BSD-3-Clause",
+    "require": {
+        "ext-curl": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "RIPS\\API\\" : "src/API",
+            "RIPS\\API\\Exceptions\\" : "src/API/Exceptions"
+        }
+    }
+}
