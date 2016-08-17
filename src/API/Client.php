@@ -8,38 +8,48 @@ class Client
     private $cookies;
     private $options;
     private $login_data;
+    private $temp_jar;
 
     /**
      * Create a new object of the RIPS API client.
      *
      * @param $server string Custom API server address
      * @param $options array Custom curl options
+     * @param $jar string Custom cookie jar
      */
-    public function __construct($server = false, $options = array())
+    public function __construct($server = null, $options = array(), $jar = null)
     {
         if ($server) {
             $this->server = $server;
         } else {
             $this->server = 'https://api-1.ripstech.com';
         }
+        if ($jar) {
+            $this->cookies = $jar;
+            $this->temp_jar = false;
+        } else {
+            $this->cookies = tempnam(sys_get_temp_dir(), 'cookies');
+            $this->temp_jar = true;
+        }
         $this->options = $options;
-        $this->cookies = tempnam(sys_get_temp_dir(), 'cookies');
     }
 
     /**
-     * Destroy object of the RIPS API client and remove cookie jar.
+     * Destroy object of the RIPS API client and remove temp. cookie jar.
      */
     public function __destruct()
     {
-        unlink($this->cookies);
+        if ($this->temp_jar) {
+            unlink($this->cookies);
+        }
     }
 
     /**
      * Wrapper for HTTP requests via curl.
      */
-    private function send($method, $url, $body = null)
+    private function send($method, $url, $body = null, $raw = false)
     {
-        if ($method !== 'POST' && is_array($body)) {
+        if ($method !== 'POST' && is_array($body) && !empty($body)) {
             $url .= '?' . http_build_query($body);
         }
 
@@ -63,7 +73,12 @@ class Client
             curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
         }
 
-        $response = json_decode(curl_exec($handle), true);
+        $response = curl_exec($handle);
+
+        if (!$raw) {
+            $response = json_decode($response, true);
+        }
+
         $error = curl_error($handle);
         $info = curl_getinfo($handle);
 
@@ -77,13 +92,21 @@ class Client
             case 200:
                 return $response;
             case 400:
-                throw new Exceptions\BadRequestError($response['message']);
+                throw new Exceptions\BadRequestError(
+                    isset($response['message']) ? $response['message'] : ''
+                );
             case 401:
-                throw new Exceptions\NotAuthorizedError($response['message']);
+                throw new Exceptions\NotAuthorizedError(
+                    isset($response['message']) ? $response['message'] : ''
+                );
             case 404:
-                throw new Exceptions\NotFoundError($response['message']);
+                throw new Exceptions\NotFoundError(
+                    isset($response['message']) ? $response['message'] : ''
+                );
             case 500:
-                throw new Exceptions\ServerError($response['message']);
+                throw new Exceptions\ServerError(
+                    isset($response['message']) ? $response['message'] : ''
+                );
         }
     }
 
@@ -469,6 +492,19 @@ class Client
     }
 
     /**
+     * Get PDF report of a project via project id.
+     *
+     * @param $pid int Project id
+     * @param $data array Optional parameters to filter results
+     * @return Raw PDF file
+     */
+    public function getProjectReport($pid, $data = array())
+    {
+        $url = $this->server . '/project/' . intval($pid) . '/report/';
+        return $this->send('GET', $url, $data, true);
+    }
+
+    /**
      * Get issue types.
      *
      * @return Associative array of issue types
@@ -572,6 +608,53 @@ class Client
     }
 
     /**
+     * Get stats.
+     *
+     * @return Associative array of stats
+     */
+    public function getStats()
+    {
+        $url = $this->server . '/stats/';
+        return $this->send('GET', $url);
+    }
+
+    /**
+     * Get error logs.
+     *
+     * @param $data array Optional parameters to filter results
+     * @return Associative array of error logs
+     */
+    public function getErrorLogs($data = array())
+    {
+        $url = $this->server . '/logs/errors/';
+        return $this->send('GET', $url, $data);
+    }
+
+    /**
+     * Get info logs.
+     *
+     * @param $data array Optional parameters to filter results
+     * @return Associative array of info logs
+     */
+    public function getInfoLogs($data = array())
+    {
+        $url = $this->server . '/logs/infos/';
+        return $this->send('GET', $url, $data);
+    }
+
+    /**
+     * Get scan logs.
+     *
+     * @param $data array Optional parameters to filter results
+     * @return Associative array of info scans
+     */
+    public function getScanLogs($data = array())
+    {
+        $url = $this->server . '/logs/scans/';
+        return $this->send('GET', $url, $data);
+    }
+
+    /**
      * Login and save authentication token in cookie.
      *
      * @param $data array Authentication data
@@ -588,6 +671,9 @@ class Client
      */
     public function relogin()
     {
+        if (!$this->login_data) {
+            throw new \Exception('No login data available');
+        }
         try {
             $this->getStatus();
         } catch (Exceptions\NotAuthorizedError $e) {
@@ -603,6 +689,28 @@ class Client
         $this->login_data = null;
         $url = $this->server . '/logout/';
         return $this->send('POST', $url);
+    }
+
+    /**
+     * Block execution until the scan of a project is finished.
+     *
+     * @param $pid int Project id
+     * @param $wait_time int Optional time out in seconds
+     * @param $sleep_time int Sleep time between status fetches
+     */
+    public function blockUntilFinished($pid, $wait_time = null, $sleep_time = 5)
+    {
+        for ($iteration = 0;; $iteration++) {
+            $status = $this->getProjectStatus($pid);
+
+            if (($status['phase'] == 0) && ($status['percent'] == 100)) {
+                break;
+            } else if (!is_null($wait_time) && $iteration > ($wait_time / $sleep_time)) {
+                throw new \Exception('Scan did not finish in time');
+            }
+
+            sleep($sleep_time);
+        }
     }
 }
 
