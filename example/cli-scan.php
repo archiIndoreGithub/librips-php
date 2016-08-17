@@ -1,6 +1,7 @@
+#!/usr/bin/env php
 <?php
 
-require __DIR__ . '/../src/autoload.php';
+require __DIR__ . '/vendor/autoload.php';
 
 use RIPS\API\Client;
 use RIPS\API\Exceptions\NotAuthorizedError;
@@ -23,6 +24,12 @@ class RIPSExample
         ));
     }
 
+    /**
+     * It is easy to extend methods of the API in case special functionality is
+     * required. In this simple example we want to test if there is already a
+     * project with the same name as the current project. To do this we simply
+     * iterate over all projects of the current user and check the name.
+     */
     public function getProjectByName($name)
     {
         $projects = $this->rips->getProjects();
@@ -43,28 +50,34 @@ class RIPSExample
         $project = $this->getProjectByName($path['filename']);
         if ($project === false) {
             echo "Uploading project\n";
+
+            /**
+             * Upload a source code archive to the RIPS cloud and add it to the
+             * queue. By sending "path" instead of "source" it would be possible
+             * to use this example script for the self-hosted version of RIPS.
+             */
             $project = $this->rips->addProject(array(
                 'name' => $path['filename'],
                 'source' => $file
             ));
+
             echo "Upload complete\n";
         } else {
             echo "Project already existing\n";
         }
 
-        while (1) {
-            $status = $this->rips->getProjectStatus($project['projectId']);
+        /**
+         * Block the execution until the scan is finished. This may take
+         * several minutes.
+         */
+        $this->rips->blockUntilFinished($project['projectId']);
 
-            echo "\rStatus: " . $status['percent'];
-
-            if (($status['phase'] == 0) && ($status['percent'] == 100)) {
-                echo "\n";
-                break;
-            }
-
-            sleep(5);
-        }
-
+        /**
+         * If this point is reached it means that the scan is finished and we
+         * can start to process interesting information, e.g., issues. Some
+         * columns contain numerical identifiers and have to be dereferenced to
+         * be readable for humans.
+         */
         $issues = $this->rips->getProjectIssues($project['projectId']);
 
         foreach ($issues as &$issue) {
