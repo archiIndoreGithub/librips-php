@@ -207,6 +207,18 @@ class Client
     }
 
     /**
+     * Get the trend of a project via project id.
+     *
+     * @param $pid int Project id
+     * @return Associative array of project trend
+     */
+    public function getProjectTrend($pid)
+    {
+        $url = $this->server . '/project/' . intval($pid) . '/trend/';
+        return $this->send('GET', $url);
+    }
+
+    /**
      * Get filenames of a project via project id.
      *
      * @param $pid int Project id
@@ -631,6 +643,17 @@ class Client
     }
 
     /**
+     * Delete error logs.
+     *
+     * @param $data array Optional parameters to filter results
+     */
+    public function deleteErrorLogs($data = array())
+    {
+        $url = $this->server . '/logs/errors/';
+        return $this->send('DELETE', $url, $data);
+    }
+
+    /**
      * Get info logs.
      *
      * @param $data array Optional parameters to filter results
@@ -643,6 +666,17 @@ class Client
     }
 
     /**
+     * Delete info logs.
+     *
+     * @param $data array Optional parameters to filter results
+     */
+    public function deleteInfoLogs($data = array())
+    {
+        $url = $this->server . '/logs/infos/';
+        return $this->send('DELETE', $url, $data);
+    }
+
+    /**
      * Get scan logs.
      *
      * @param $data array Optional parameters to filter results
@@ -652,6 +686,30 @@ class Client
     {
         $url = $this->server . '/logs/scans/';
         return $this->send('GET', $url, $data);
+    }
+
+    /**
+     * Delete scan logs.
+     *
+     * @param $data array Optional parameters to filter results
+     */
+    public function deleteScanLogs($data = array())
+    {
+        $url = $this->server . '/logs/scans/';
+        return $this->send('DELETE', $url, $data);
+    }
+
+    /**
+     * Send e-mail to user.
+     *
+     * @param $uid int User id
+     * @param $type string Template type
+     * @param $data array Optional parameters for e-mails
+     */
+    public function sendEmail($uid, $type, $data = array())
+    {
+        $url = $this->server . '/user/' . intval($uid) . '/email/' . $type . '/';
+        return $this->send('POST', $url, $data);
     }
 
     /**
@@ -720,7 +778,4 @@ class Client
  * This PHP library provides an object-oriented interface for the RIPS API. It is a simple
  * wrapper around libcurl and takes care of everything important that is required to
  * use the API, e.g., correct management of cookies.
- *
- * To use this library you have to include the file <i>src/autoload.php</i>. Afterwards it is
- * possible to create an object of the type <i>RIPS\\API\\Client</i>.
  */
