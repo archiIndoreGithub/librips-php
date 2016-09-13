@@ -97,10 +97,10 @@ if ($argc < 4) {
 try {
     $example = new RIPSExample($argv[1], $argv[2]);
 } catch (NotAuthorizedError $e) {
-    echo "Invalid login\n";
+    echo "Invalid login. Reason: ". $e->getMessage() . "\n";
     exit(1);
 } catch (Exception $e) {
-    echo "Could not connect\n";
+    echo "Could not connect. Reason: ". $e->getMessage()."\n";
     exit(1);
 }
 
