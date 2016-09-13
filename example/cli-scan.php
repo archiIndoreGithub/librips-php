@@ -14,7 +14,7 @@ class RIPSExample
     {
         $curl = array(
             // Only required for CURL on Windows.
-            CURLOPT_CAINFO => 'ca.crt'
+            CURLOPT_CAINFO => __DIR__ . '/ca.crt'
         );
 
         $this->rips = new Client(false, $curl);
